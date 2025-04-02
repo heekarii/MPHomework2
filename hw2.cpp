@@ -10,7 +10,7 @@ void assignColor(IplImage *src, IplImage *dst, int u, int v, int channel) {
 			if (y2 < 0 || y2 > dst->height - 1) continue;
 			CvScalar f = cvGet2D(dst, y, x);
 			CvScalar g = cvGet2D(src, y2, x2);
-			f.val[channel] = g.val[channel];
+			f.val[channel] = g.val[0];
 			cvSet2D(dst, y2, x2, f);
 		}
 }
@@ -23,7 +23,7 @@ IplImage *resizeImage(IplImage *img, float scaleFactor) {
 	size.height = cvRound(img->height * scaleFactor);
 
 	IplImage *resizedImg = cvCreateImage(size, 8, 3);
-	cvResize(img, resizedImg);
+	cvResize(img, resizedImg, CV_INTER_NN);
 	return resizedImg;
 }
 
@@ -40,9 +40,10 @@ double getSSD(IplImage *s1, IplImage *s2, int u, int v) {
 
 			CvScalar f1 = cvGet2D(s1, y, x);
 			CvScalar f2 = cvGet2D(s2, y2, x2);
-			out += ((f1.val[0] - f2.val[0]) * (f1.val[0] - f2.val[0]) + 
-					(f1.val[1] - f2.val[1]) * (f1.val[1] - f2.val[1]) +
-					(f1.val[2] - f2.val[2]) * (f1.val[2] - f2.val[2])
+			out += ((f1.val[0] - f2.val[0]) * (f1.val[0] - f2.val[0])
+				//+ 
+				//	(f1.val[1] - f2.val[1]) * (f1.val[1] - f2.val[1]) +
+				//	(f1.val[2] - f2.val[2]) * (f1.val[2] - f2.val[2])
 				);
 			count++;
 		}
@@ -51,7 +52,7 @@ double getSSD(IplImage *s1, IplImage *s2, int u, int v) {
 }
 
 // 최적 이동량 계산
-void Shift(IplImage *source, IplImage *templateImage, int* bestU, int* bestV, int range) {
+void shift(IplImage *source, IplImage *templateImage, int* bestU, int* bestV, int range) {
 	float minSSD = FLT_MAX;
 	// 최적이동량
 	*bestU = 0;
@@ -71,7 +72,7 @@ void Shift(IplImage *source, IplImage *templateImage, int* bestU, int* bestV, in
 }
 
 int main() {
-	printf("CV test\n");
+	printf("CV test\nInput File Name: ");
 	char path[100];
 
 	// 경로 입력
@@ -95,45 +96,52 @@ int main() {
 	for (int i = 0; i < 3; i++) 
 		for (int y = 0; y < src[i]->height; y++) 
 			for (int x = 0; x < src[i]->width; x++) {
-				CvScalar f = cvGet2D(src[i], y, x);
+				CvScalar f = cvScalarAll(0);
 				CvScalar g = cvGet2D(source, y + src[i]->height * i, x);
-				f.val[i] = g.val[0];
+				f.val[0] = g.val[0];
 				cvSet2D(src[i], y, x, f);
 			}
-
-	// 최종 이미지 선언
-	IplImage* dst = cvCreateImage(size, 8, 3);
 	
 	// coarse-to-fine
 	IplImage **cur = src;
 
-	int bestU = 0, bestV = 0;
-	int range = 10; // shift range
+	int bestU[3] = { 0,0,0 }, bestV[3] = { 0,0,0 };
+	float scale[3] = { 0.25f, 0.5f, 1.0f }; // scale
+	float range[3] = { 50, 20, 10 };
 
-	for (int i = 0; i < 3; i++) {
-		// downsampling
-		for (float scale = 1.0; scale >= 0.1; scale -= 0.3) {
-			IplImage *resizedImg = resizeImage(cur[i], scale);
+	IplImage *dst = cvCreateImage(size, 8, 3);
 
-			int localBestU = 0, localBestV = 0;
-			Shift(resizedImg, resizedImg, &localBestU, &localBestV, range);
 
-			bestU = localBestU;
-			bestV = localBestV;
-
-			printf("Scale %.1f Best shift (%d %d)\n", scale, bestU, bestV);
-
-			if (scale == 0.1) {
-				IplImage *dst = cvCreateImage(cvGetSize(source), 8, 3);
-				assignColor(resizedImg, dst, bestU, bestV, i);
-				cvShowImage("dst", dst);
-				cvWaitKey(1);
-				cvReleaseImage(&dst);
-			}
-
-			cur[i] = resizedImg;
+	for (int level = 0; level < 3; level++) {
+		CvSize rsize;
+		rsize.width = cvRound(size.width * scale[level]);
+		rsize.height = cvRound(size.height * scale[level]);
+		IplImage *resizedsrc[3];
+		// image resize
+		for (int i = 0; i < 3; i++) {
+			resizedsrc[i] = cvCreateImage(rsize, 8, 3);
+			resizedsrc[i] = resizeImage(cur[i], scale[level]);
 		}
+
+		for (int i = 1; i < 3; i++) {
+			int localBestU = 0, localBestV = 0;
+			shift(resizedsrc[0], resizedsrc[i], &localBestU, &localBestV, range[level]);
+
+			bestU[i] = localBestU;
+			bestV[i] = localBestV;
+
+			printf("Scale %.1f Best shift (%d, %d)\n", scale[level], bestU[i], bestV[i]);
+		
+		}
+
 	}
+
+	assignColor(src[0], dst, bestU[0] * 10, bestV[0] * 10, 0);
+	assignColor(src[1], dst, bestU[1] * 10, bestV[1] * 10, 1);
+	assignColor(src[2], dst, bestU[2] * 10, bestV[2] * 10, 2);
+
+	cvShowImage("dst", dst);
+	cvWaitKey();
 
 	cvReleaseImage(&source);
 
