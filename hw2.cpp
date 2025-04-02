@@ -112,33 +112,74 @@ int main() {
 	IplImage *dst = cvCreateImage(size, 8, 3);
 
 
+	//for (int level = 0; level < 3; level++) {
+	//	CvSize rsize;
+	//	rsize.width = cvRound(size.width * scale[level]);
+	//	rsize.height = cvRound(size.height * scale[level]);
+	//	IplImage *resizedsrc[3];
+	//	// image resize
+	//	for (int i = 0; i < 3; i++) {
+	//		resizedsrc[i] = cvCreateImage(rsize, 8, 3);
+	//		resizedsrc[i] = resizeImage(cur[i], scale[level]);
+	//	}
+
+	//	for (int i = 1; i < 3; i++) {
+	//		int localBestU = 0, localBestV = 0;
+	//		shift(resizedsrc[0], resizedsrc[i], &localBestU, &localBestV, range[level]);
+
+	//		bestU[i] = localBestU;
+	//		bestV[i] = localBestV;
+
+	//		printf("Scale %.1f Best shift (%d, %d)\n", scale[level], bestU[i], bestV[i]);
+	//	
+	//	}
+
+	//}
 	for (int level = 0; level < 3; level++) {
 		CvSize rsize;
 		rsize.width = cvRound(size.width * scale[level]);
 		rsize.height = cvRound(size.height * scale[level]);
+
 		IplImage *resizedsrc[3];
-		// image resize
+		// (1) 이미지 축소
 		for (int i = 0; i < 3; i++) {
-			resizedsrc[i] = cvCreateImage(rsize, 8, 3);
 			resizedsrc[i] = resizeImage(cur[i], scale[level]);
 		}
 
+		// (2) i=1,2만 기준(i=0)과 비교
 		for (int i = 1; i < 3; i++) {
 			int localBestU = 0, localBestV = 0;
+
+			// shift(기준=resizedsrc[0], 대상=resizedsrc[i], &localBestU, &localBestV, ...)
 			shift(resizedsrc[0], resizedsrc[i], &localBestU, &localBestV, range[level]);
 
-			bestU[i] = localBestU;
-			bestV[i] = localBestV;
+			// "이전 레벨"에서 누적된 bestU[i], bestV[i]를
+			// 이번 레벨 scale에 맞춰 스케일 업(2배 or scale[level]/scale[level-1] 등).
+			if (level > 0) {
+				float ratio = scale[level] / scale[level - 1];
+				bestU[i] = (int)(bestU[i] * ratio);
+				bestV[i] = (int)(bestV[i] * ratio);
+			}
 
-			printf("Scale %.1f Best shift (%d, %d)\n", scale[level], bestU[i], bestV[i]);
-		
+			// 그리고, 이번 레벨에서 새로 찾은 localBestU/ localBestV를
+			// 원본 좌표로 환산해 누적
+			bestU[i] += (int)(localBestU / scale[level]);
+			bestV[i] += (int)(localBestV / scale[level]);
+
+			printf("[level=%.2f] i=%d => local=(%d,%d), total=(%d,%d)\n",
+				scale[level], i, localBestU, localBestV, bestU[i], bestV[i]);
 		}
 
+		// (3) resizedsrc[i] 메모리 해제
+		for (int i = 0; i < 3; i++) {
+			cvReleaseImage(&resizedsrc[i]);
+		}
 	}
 
-	assignColor(src[0], dst, bestU[0] * 10, bestV[0] * 10, 0);
-	assignColor(src[1], dst, bestU[1] * 10, bestV[1] * 10, 1);
-	assignColor(src[2], dst, bestU[2] * 10, bestV[2] * 10, 2);
+
+	assignColor(src[0], dst, 0 , 0, 0);
+	assignColor(src[1], dst, bestU[1], bestV[1], 1);
+	assignColor(src[2], dst, bestU[2], bestV[2], 2);
 
 	cvShowImage("dst", dst);
 	cvWaitKey();
