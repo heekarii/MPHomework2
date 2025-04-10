@@ -1,6 +1,7 @@
+/*
 #include<opencv2/opencv.hpp>
 
-// ÇÈ¼¿¿¡ color ÇÒ´ç
+// í”½ì…€ì— color í• ë‹¹
 void assignColor(IplImage *src, IplImage *dst, int u, int v, int channel) {
 	for (int y = 0; y < dst->height; y++) 
 		for (int x = 0; x < dst->width; x++) {
@@ -15,10 +16,10 @@ void assignColor(IplImage *src, IplImage *dst, int u, int v, int channel) {
 		}
 }
 
-// ÀÌ¹ÌÁö Ãà¼Ò
+// ì´ë¯¸ì§€ ì¶•ì†Œ
 IplImage *resizeImage(IplImage *img, float scaleFactor) {
 	CvSize size;
-	// scale factor ·Î ÀÌ¹ÌÁö Å©±â Ãà¼Ò
+	// scale factor ë¡œ ì´ë¯¸ì§€ í¬ê¸° ì¶•ì†Œ
 	size.width = cvRound(img->width * scaleFactor);
 	size.height = cvRound(img->height * scaleFactor);
 
@@ -27,7 +28,7 @@ IplImage *resizeImage(IplImage *img, float scaleFactor) {
 	return resizedImg;
 }
 
-// ssd °è»ê
+// ssd ê³„ì‚°
 double getSSD(IplImage *s1, IplImage *s2, int u, int v) {
 	double out = 0;
 	int count = 0;
@@ -51,10 +52,10 @@ double getSSD(IplImage *s1, IplImage *s2, int u, int v) {
 	return out;
 }
 
-// ÃÖÀû ÀÌµ¿·® °è»ê
+// ìµœì  ì´ë™ëŸ‰ ê³„ì‚°
 void shift(IplImage *source, IplImage *templateImage, int* bestU, int* bestV, int range) {
 	float minSSD = FLT_MAX;
-	// ÃÖÀûÀÌµ¿·®
+	// ìµœì ì´ë™ëŸ‰
 	*bestU = 0;
 	*bestV = 0;
 
@@ -75,24 +76,24 @@ int main() {
 	printf("CV test\nInput File Name: ");
 	char path[100];
 
-	// °æ·Î ÀÔ·Â
+	// ê²½ë¡œ ì…ë ¥
 	scanf("%s", path);
 
-	// °æ·Î »óÀÇ ÀÌ¹ÌÁö ·Îµå
+	// ê²½ë¡œ ìƒì˜ ì´ë¯¸ì§€ ë¡œë“œ
 	IplImage* source = cvLoadImage(path);
 
-	// ¸ñÇ¥ ÀÌ¹ÌÁö Å©±â ¼³Á¤
+	// ëª©í‘œ ì´ë¯¸ì§€ í¬ê¸° ì„¤ì •
 	CvSize size;
 	size.height = source->height / 3;
 	size.width = source->width;
 
-	// B, G, R ¼øÀ¸·Î ¹è¿­¿¡ ÀÌ¹ÌÁö ÀúÀåÇÏ±â À§ÇÑ IplImage ¹è¿­ ¼±¾ğ
+	// B, G, R ìˆœìœ¼ë¡œ ë°°ì—´ì— ì´ë¯¸ì§€ ì €ì¥í•˜ê¸° ìœ„í•œ IplImage ë°°ì—´ ì„ ì–¸
 	IplImage *src[3] = {	cvCreateImage(size, 8, 3),
 							cvCreateImage(size, 8, 3),
 							cvCreateImage(size, 8, 3) 
 	};
 
-	// °¢ ÀÎµ¦½ºº°·Î ÀÌ¹ÌÁö ÀúÀå
+	// ê° ì¸ë±ìŠ¤ë³„ë¡œ ì´ë¯¸ì§€ ì €ì¥
 	for (int i = 0; i < 3; i++) 
 		for (int y = 0; y < src[i]->height; y++) 
 			for (int x = 0; x < src[i]->width; x++) {
@@ -141,28 +142,28 @@ int main() {
 		rsize.height = cvRound(size.height * scale[level]);
 
 		IplImage *resizedsrc[3];
-		// (1) ÀÌ¹ÌÁö Ãà¼Ò
+		// (1) ì´ë¯¸ì§€ ì¶•ì†Œ
 		for (int i = 0; i < 3; i++) {
 			resizedsrc[i] = resizeImage(cur[i], scale[level]);
 		}
 
-		// (2) i=1,2¸¸ ±âÁØ(i=0)°ú ºñ±³
+		// (2) i=1,2ë§Œ ê¸°ì¤€(i=0)ê³¼ ë¹„êµ
 		for (int i = 1; i < 3; i++) {
 			int localBestU = 0, localBestV = 0;
 
-			// shift(±âÁØ=resizedsrc[0], ´ë»ó=resizedsrc[i], &localBestU, &localBestV, ...)
+			// shift(ê¸°ì¤€=resizedsrc[0], ëŒ€ìƒ=resizedsrc[i], &localBestU, &localBestV, ...)
 			shift(resizedsrc[0], resizedsrc[i], &localBestU, &localBestV, range[level]);
 
-			// "ÀÌÀü ·¹º§"¿¡¼­ ´©ÀûµÈ bestU[i], bestV[i]¸¦
-			// ÀÌ¹ø ·¹º§ scale¿¡ ¸ÂÃç ½ºÄÉÀÏ ¾÷(2¹è or scale[level]/scale[level-1] µî).
+			// "ì´ì „ ë ˆë²¨"ì—ì„œ ëˆ„ì ëœ bestU[i], bestV[i]ë¥¼
+			// ì´ë²ˆ ë ˆë²¨ scaleì— ë§ì¶° ìŠ¤ì¼€ì¼ ì—…(2ë°° or scale[level]/scale[level-1] ë“±).
 			if (level > 0) {
 				float ratio = scale[level] / scale[level - 1];
 				bestU[i] = (int)(bestU[i] * ratio);
 				bestV[i] = (int)(bestV[i] * ratio);
 			}
 
-			// ±×¸®°í, ÀÌ¹ø ·¹º§¿¡¼­ »õ·Î Ã£Àº localBestU/ localBestV¸¦
-			// ¿øº» ÁÂÇ¥·Î È¯»êÇØ ´©Àû
+			// ê·¸ë¦¬ê³ , ì´ë²ˆ ë ˆë²¨ì—ì„œ ìƒˆë¡œ ì°¾ì€ localBestU/ localBestVë¥¼
+			// ì›ë³¸ ì¢Œí‘œë¡œ í™˜ì‚°í•´ ëˆ„ì 
 			bestU[i] += (int)(localBestU / scale[level]);
 			bestV[i] += (int)(localBestV / scale[level]);
 
@@ -170,7 +171,7 @@ int main() {
 				scale[level], i, localBestU, localBestV, bestU[i], bestV[i]);
 		}
 
-		// (3) resizedsrc[i] ¸Ş¸ğ¸® ÇØÁ¦
+		// (3) resizedsrc[i] ë©”ëª¨ë¦¬ í•´ì œ
 		for (int i = 0; i < 3; i++) {
 			cvReleaseImage(&resizedsrc[i]);
 		}
@@ -188,3 +189,4 @@ int main() {
 
 	return 0;
 }
+	*/
